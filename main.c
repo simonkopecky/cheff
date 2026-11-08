@@ -10,7 +10,7 @@
 // Relative to $HOME
 #define RECIPES "/.config/cheff/recipes/"
 
-const char* concat_strings(const char *s1, const char *s2) {
+char* concat_strings(const char *s1, const char *s2) {
 	size_t len1 = strlen(s1);
 	size_t len2 = strlen(s2);
 
@@ -21,7 +21,7 @@ const char* concat_strings(const char *s1, const char *s2) {
 	memcpy(result, s1, len1);
 	memcpy(result + len1, s2, len2 + 1);
 
-	return (const char*)result;
+	return result;
 }
 
 const char* get_home_dir() {
@@ -43,41 +43,58 @@ bool get_recipe_files(char*** recipe_files, size_t *file_count) {
 	const char *home = get_home_dir();
 	if (home == NULL) return false;
 
-	const char *recipes_path = concat_strings(home, RECIPES);
+	char *recipes_path = concat_strings(home, RECIPES);
 	if (recipes_path == NULL) return false;
 
 	struct dirent *recipe;
 	DIR *dir = opendir(recipes_path);
+	free(recipes_path);
 
 	if (dir == NULL) return false;
 
 	size_t index = 0;
 
 	char **result = malloc(sizeof(char**));
+	bool success = true;
 
 	while ((recipe = readdir(dir)) != NULL) {
 		if (strcmp(recipe->d_name, ".") == 0 || strcmp(recipe->d_name, "..") == 0) continue;
 
 		if (index != 0) {
 			char **tmp = realloc(result, ++index * sizeof(char**));
+
 			if (tmp == NULL) {
-				free(result);
-				return false;
+				success = false;
+				break;
 			}
 
 			result = tmp;
 		}
 
-		result[index] = recipe->d_name;
+		char *name = strdup(recipe->d_name);
+		if (name == NULL) {
+			success = false;
+			break;
+		}
+
+		result[index] = name;
 		index++;
 	}
 
 	closedir(dir);
 
-	*recipe_files = result;
-	*file_count = index;
+	if (success) {
+		*recipe_files = result;
+		*file_count = index;
 
-	return true;
+		return true;
+	}
+	else {
+		for (size_t i = 0; i < index; i++) free(result[i]);
+		free(result);
+
+		return false;
+	}
 }
 
 int main() {
