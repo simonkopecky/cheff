@@ -1,8 +1,8 @@
-CC=gcc
+CC=g++
 CFLAGS=-Wall -Wextra -pedantic
 
 build:
-	$(CC) $(CFLAGS) main.c -o cheff
+	$(CC) $(CFLAGS) main.cpp -o cheff
 
 all: build
 
