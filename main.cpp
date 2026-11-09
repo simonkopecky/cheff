@@ -1,117 +1,71 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <string.h>
 
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <optional>
 
 #define DYN_ARRAY_CAP 32
 
 // Relative to $HOME
 #define RECIPES "/.config/cheff/recipes/"
 
-char* concat_strings(const char *s1, const char *s2) {
-	size_t len1 = strlen(s1);
-	size_t len2 = strlen(s2);
+std::string get_home_dir() {
+	const char *homedir = nullptr;
 
-	char *result = (char*)malloc(len1 + len2 + 1);
-	
-	if (result == NULL) return NULL;
+	if ((homedir = getenv("HOME")) == nullptr) {
+		homedir = getpwuid(getuid())->pw_dir;
+	}
 
-	memcpy(result, s1, len1);
-	memcpy(result + len1, s2, len2 + 1);
+	if (homedir == nullptr) return "";
+
+	std::string result(homedir);
 
 	return result;
 }
 
-const char* get_home_dir() {
-	const char *homedir;
+std::vector<std::string> get_recipe_files() {
+	std::string home = get_home_dir();
+	if (home.empty()) return {};
 
-	if ((homedir = getenv("HOME")) == NULL) {
-		homedir = getpwuid(getuid())->pw_dir;
-	}
+	std::string recipes_path = home + RECIPES;
 
-	return homedir;
-}
+	struct dirent *ent;
+	DIR *dir = opendir(recipes_path.c_str());
 
-bool get_recipe_files(char*** recipe_files, size_t *file_count) {
-	if (recipe_files == NULL || file_count == NULL) return false;
+	if (dir == nullptr) return {};
 
-	*recipe_files = NULL;
-	*file_count = 0;
+	std::vector<std::string> result;
 
-	const char *home = get_home_dir();
-	if (home == NULL) return false;
+	while ((ent = readdir(dir)) != nullptr) {
+		std::string name(ent->d_name);
 
-	char *recipes_path = concat_strings(home, RECIPES);
-	if (recipes_path == NULL) return false;
+		if (name == "." || name == "..") continue;
 
-	struct dirent *recipe;
-	DIR *dir = opendir(recipes_path);
-	free(recipes_path);
+		std::string path = home + RECIPES + name;
 
-	if (dir == NULL) return false;
-
-	char **result = (char**)malloc(sizeof(char**));
-	size_t len = 0;
-	size_t capacity = DYN_ARRAY_CAP;
-
-	bool success = true;
-
-	while ((recipe = readdir(dir)) != NULL) {
-		if (strcmp(recipe->d_name, ".") == 0 || strcmp(recipe->d_name, "..") == 0) continue;
-
-		if (len >= capacity) {
-			capacity *= 2;
-			char **tmp = (char**)realloc(result, capacity * sizeof(char**));
-
-			if (tmp == NULL) {
-				printf("bruh\n");
-				success = false;
-				break;
-			}
-
-			result = tmp;
-		}
-
-		char *path = concat_strings(home, RECIPES);
-		path = concat_strings(path, recipe->d_name);
-
-		if (path == NULL) {
-			success = false;
-			break;
-		}
-
-		result[len] = path;
-		len++;
+		result.push_back(path);
 	}
 
 	closedir(dir);
 
-	if (success) {
-		*recipe_files = result;
-		*file_count = len;
-
-		return true;
-	}
-	else {
-		for (size_t i = 0; i < len; i++) free(result[i]);
-		free(result);
-
-		return false;
-	}
+	return result;
 }
 
-char** get_item_from_file(char *file_path) {
-	if (file_path == NULL) return NULL;
+char** get_items_from_file(std::string file_path) {
+	if (file_path == nullptr) return nullptr;
 
 	FILE *file = fopen(file_path, "r");
 
-	if (file == NULL) {
+	if (file == nullptr) {
 		printf("Couldn't open file %s\n", file_path);
-		return NULL;
+		return nullptr;
 	}
 
 	bool in_item = false;
@@ -123,7 +77,7 @@ char** get_item_from_file(char *file_path) {
 		char ch = fgetc(file);
 
 		if (in_item) {
-
+			
 		}
 		else {
 			if (ch == ' ' || ch == '\n') {
@@ -139,7 +93,7 @@ char** get_item_from_file(char *file_path) {
 
 				char *tmp = (char*)realloc(item_name, item_name_capacity);
 
-				if (tmp == NULL) return NULL;
+				if (tmp == nullptr) return nullptr;
 
 				item_name = tmp;
 			}
@@ -148,20 +102,17 @@ char** get_item_from_file(char *file_path) {
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 int main() {
-	char **recipe_files = NULL;
-	size_t file_count = 0;
+	std::vector<std::string> recipe_files = get_recipe_files();
 
-	if (!get_recipe_files(&recipe_files, &file_count)) return 1;
+	if (recipe_files.empty()) return 1;
 
-	for (size_t i = 0; i < file_count; i++) {
-		printf("%s\n", recipe_files[i]);
+	for (size_t i = 0; i < recipe_files.size(); i++) {
+		std::cout << recipe_files[i];
 	}
-
-	get_item_from_file(recipe_files[0]);
 
 	return 0;
 }
