@@ -7,6 +7,7 @@
 #include <pwd.h>
 
 #include <iostream>
+#include <print>
 #include <string>
 #include <vector>
 #include <optional>
@@ -58,26 +59,25 @@ std::vector<std::string> get_recipe_files() {
 	return result;
 }
 
-char** get_items_from_file(std::string file_path) {
-	if (file_path == nullptr) return nullptr;
+std::string get_items_from_file(std::string file_path) {
+	if(file_path.empty()) return {};
 
-	FILE *file = fopen(file_path, "r");
+	FILE *file = fopen(file_path.c_str(), "r");
 
 	if (file == nullptr) {
-		printf("Couldn't open file %s\n", file_path);
+		std::cout << "Couldn't open file " << file_path << "\n";
 		return nullptr;
 	}
 
 	bool in_item = false;
-	size_t item_name_len = 0;
-	size_t item_name_capacity = DYN_ARRAY_CAP;
-	char *item_name = (char*)malloc(item_name_capacity);
+	std::string item_name;
 
 	while (!feof(file)) {
 		char ch = fgetc(file);
 
 		if (in_item) {
-			
+			std::cout << item_name << "\n";
+			break;
 		}
 		else {
 			if (ch == ' ' || ch == '\n') {
@@ -88,21 +88,11 @@ char** get_items_from_file(std::string file_path) {
 				ch = '\0';
 			}
 
-			if (item_name_len >= item_name_capacity) {
-				item_name_capacity *= 2;
-
-				char *tmp = (char*)realloc(item_name, item_name_capacity);
-
-				if (tmp == nullptr) return nullptr;
-
-				item_name = tmp;
-			}
-
-			item_name[item_name_len++] = ch;
+			item_name.push_back(ch);
 		}
 	}
 
-	return nullptr;
+	return {};
 }
 
 int main() {
@@ -111,8 +101,10 @@ int main() {
 	if (recipe_files.empty()) return 1;
 
 	for (size_t i = 0; i < recipe_files.size(); i++) {
-		std::cout << recipe_files[i];
+		std::cout << recipe_files[i] << "\n";
 	}
+
+	get_items_from_file(recipe_files[0]);
 
 	return 0;
 }
