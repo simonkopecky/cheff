@@ -17,6 +17,11 @@
 // Relative to $HOME
 #define RECIPES "/.config/cheff/recipes/"
 
+typedef struct {
+	std::string key;
+	std::string val;
+} cheff_item;
+
 std::string get_home_dir() {
 	const char *homedir = nullptr;
 
@@ -59,25 +64,50 @@ std::vector<std::string> get_recipe_files() {
 	return result;
 }
 
-std::string get_items_from_file(std::string file_path) {
+bool skip_comment_line(FILE **file) {
+	char ch;
+	while ((ch = fgetc(*file)) != '\n') {
+		if (feof(*file)) return false;
+	}
+
+	return true;
+}
+
+std::vector<cheff_item> get_items_from_file(std::string file_path) {
 	if(file_path.empty()) return {};
 
 	FILE *file = fopen(file_path.c_str(), "r");
 
 	if (file == nullptr) {
 		std::cout << "Couldn't open file " << file_path << "\n";
-		return nullptr;
+		return {};
 	}
 
 	bool in_item = false;
-	std::string item_name;
+
+	std::vector<cheff_item> items;
+	cheff_item current_item;
 
 	while (!feof(file)) {
 		char ch = fgetc(file);
 
+		if (ch == '#') {
+			if (!skip_comment_line(&file)) return {};
+
+			continue;
+		}
+
 		if (in_item) {
-			std::cout << item_name << "\n";
-			break;
+			if (ch == '}') {
+				in_item = false;
+
+				items.push_back(current_item);
+				current_item = {};
+
+				continue;
+			}
+
+			current_item.val.push_back(ch);
 		}
 		else {
 			if (ch == ' ' || ch == '\n') {
@@ -85,14 +115,14 @@ std::string get_items_from_file(std::string file_path) {
 			}
 			else if (ch == '{') {
 				in_item = true;
-				ch = '\0';
+				continue;
 			}
 
-			item_name.push_back(ch);
+			current_item.key.push_back(ch);
 		}
 	}
 
-	return {};
+	return items;
 }
 
 int main() {
@@ -104,7 +134,9 @@ int main() {
 		std::cout << recipe_files[i] << "\n";
 	}
 
-	get_items_from_file(recipe_files[0]);
+	std::vector<cheff_item> items = get_items_from_file(recipe_files[0]);
+
+	
 
 	return 0;
 }
