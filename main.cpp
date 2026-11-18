@@ -1,35 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-
-#include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
-
-#include <bits/stdc++.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <string>
 #include <vector>
-
-#define DYN_ARRAY_CAP 32
+#include <unordered_map>
+#include <filesystem>
+#include <stdexcept>
 
 // Relative to $HOME
 #define RECIPES_CONFIG "/.config/cheff/recipes/"
 #define RECIPES_LOCAL "/.local/share/cheff/recipes"
 
-std::string get_home_dir() {
-	const char *homedir = nullptr;
+std::filesystem::path get_home_dir() {
+	struct passwd *user_entry = getpwuid(getuid());
 
-	if ((homedir = getenv("HOME")) == nullptr) {
-		homedir = getpwuid(getuid())->pw_dir;
+	if (user_entry == nullptr || user_entry->pw_dir == nullptr) {
+		throw std::runtime_error("Couldn't find user's home directory.");
 	}
 
-	if (homedir == nullptr) return "";
-
-	std::string result(homedir);
-
-	return result;
+	return user_entry->pw_dir;
 }
 
 std::vector<std::string> get_recipe_files() {
